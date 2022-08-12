@@ -4,19 +4,40 @@ importing ipynb files is not ideal
 """
 import pandas as pd
 
+###### IMPORT DATA ######
 
-# SPECIES is faster than df, and must be imported in the function file
-# easier to use as a global than to always pass dataframe
+# entire database in one dataframe (df for simplicity)
+# NOTE this file IS NOT ON GITHUB, it is too big, so it is in gitignore
+# run the RV Database notebook to create this file from the cleaned tables
+df = pd.read_csv('RV_DATABASE.csv', 
+    dtype={'MATURITY':object, 
+           'STRAT':object, 
+           'TOTNO':'Int64', 
+           'SPEC':'Int64',
+           'SPECIMEN_ID':'Int64'},
+    parse_dates=['DATETIME'])
+
+# sort by datetime and reindex
+df = df.sort_values('DATETIME').reset_index(drop=True)
+
+# individual tables used to define the database
 SPECIES = pd.read_csv('SPECIES.csv', index_col = 'index')
 SPECIES.columns = ['SPEC', 'COMMON_NAME', 'SCIENTIFIC_NAME']
+MISSIONS = pd.read_csv('MISSIONS.csv')
+GSCAT = pd.read_csv('GSCAT.csv')
+GSINF = pd.read_csv('GSINF.csv', index_col='date and time', parse_dates=['date and time'])  # parse index as pd.datetime format
+GSINF.index.name = 'DATETIME'
+GSDET = pd.read_csv('GSDET.csv')
 
 
-def get_species(species_code):
+###### FUNCTIONS ######
+
+def get_species(species_code, SPECIES=SPECIES):
     """returns the common name of the species based on the species code"""
     return SPECIES[SPECIES.SPEC == species_code].COMMON_NAME.tolist()[0]
 
 
-def search_species_by_name(name_contains):
+def search_species_by_name(name_contains, SPECIES=SPECIES):
     """returns a list of species that fit the query"""
     return SPECIES[SPECIES['COMMON_NAME'].str.contains(name_contains, case=False)]
 
@@ -236,4 +257,40 @@ def print_species_data(dataframe, species_code):
         display(pd.DataFrame(df_count[key]))
 
 
-### MAPPING FUNCTIONS TODO ###
+def average_geo(dataframe):
+    """
+    averages SLAT and ELAT & SLONG and ELONG
+    null values do not get averaged
+    """
+    geo_df = dataframe
+    geo_df['LAT'] = geo_df[['SLAT', 'ELAT']].mean(axis=1)
+    geo_df['LONG'] = geo_df[['SLONG', 'ELONG']].mean(axis=1)
+    return geo_df.drop(['SLAT', 'ELAT', 'SLONG', 'ELONG'], axis=1)
+
+
+def filter_dates(dataframe, date_min=None, date_max=None):
+    """
+    date_min and date_max are strings, formatted to be interpreted by pandas to_datetime() function
+    """
+    # initialise dates
+    datetime_min, datetime_max = dataframe.DATETIME.min(), dataframe.DATETIME.max()
+    
+    # if dates are inputted, create filters for dataframe
+    if date_min:
+        datetime_min = pd.to_datetime(date_min)
+    if date_max:
+        datetime_max = pd.to_datetime(date_max)
+        
+    # filter dataframe by dates
+    return dataframe[(dataframe.DATETIME >= datetime_min) & (dataframe.DATETIME <= datetime_max)]
+
+
+def scatterplot_species(dataframe, species_code, x='DATETIME', y='DEPTH', date_min=None, date_max=None):
+    """scatterplot of 2 species attributes: defaults to plotting depth vs time"""
+    plot_df = filter_dates(dataframe[dataframe.SPEC==species_code], date_min, date_max)
+    if y == 'DEPTH':
+        plot_df.plot(x=x, y=y, kind='scatter', figsize=(30, 12), c='#4C72B0', title=f'{get_species(species_code)}: {y} as a function of {x}').invert_yaxis()
+    else:
+        plot_df.plot(x=x, y=y, kind='scatter', figsize=(30, 12), c='#4C72B0', title=f'{get_species(species_code)}: {y} as a function of {x}')
+
+
