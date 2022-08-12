@@ -1,8 +1,13 @@
 """
 Custom functions from Notebook3_Functions
-importing ipynb files is not ideal
+Also includes imported dataframes from CSV tables and joined database
 """
+
+###### IMPORT MODULES ######
+
 import pandas as pd
+import geopandas as gpd
+
 
 ###### IMPORT DATA ######
 
