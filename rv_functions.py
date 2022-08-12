@@ -4,10 +4,12 @@ importing ipynb files is not ideal
 """
 import pandas as pd
 
+
 # SPECIES is faster than df, and must be imported in the function file
-# easier to use as a global than to always pass dataframe (could switch to defaul?)
+# easier to use as a global than to always pass dataframe
 SPECIES = pd.read_csv('SPECIES.csv', index_col = 'index')
 SPECIES.columns = ['SPEC', 'COMMON_NAME', 'SCIENTIFIC_NAME']
+
 
 def get_species(species_code):
     """returns the common name of the species based on the species code"""
@@ -17,6 +19,7 @@ def get_species(species_code):
 def search_species_by_name(name_contains):
     """returns a list of species that fit the query"""
     return SPECIES[SPECIES['COMMON_NAME'].str.contains(name_contains, case=False)]
+
 
 def format_monthly(dataframe):
     return dataframe.style.format({
