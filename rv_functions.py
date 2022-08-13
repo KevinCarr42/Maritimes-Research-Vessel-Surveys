@@ -7,6 +7,7 @@ Also includes imported dataframes from CSV tables and joined database
 
 import pandas as pd
 import geopandas as gpd
+import plotly.express as px
 
 
 ###### IMPORT DATA ######
@@ -298,4 +299,79 @@ def scatterplot_species(dataframe, species_code, x='DATETIME', y='DEPTH', date_m
     else:
         plot_df.plot(x=x, y=y, kind='scatter', figsize=(30, 12), c='#4C72B0', title=f'{get_species(species_code)}: {y} as a function of {x}')
 
+
+def species_code_to_list(species_code):
+    """
+    species_code can be an in or a list of ints
+    returns name(s) of species and code(s) in list format
+    """
+    if isinstance(species_code, list):
+        species_name = ''
+        for i in species_code:
+            species_name = species_name + ' / ' + get_species(i)
+        species_name = species_name[3:]
+    else:
+        species_name = get_species(species_code)
+        species_code = [species_code]
+            
+    return species_code, species_name
+
+
+def geo_species(dataframe, species_code, date_min=None, date_max=None):
+    """
+    species_code can be an in or a list of ints
+    date_min and date_max are strings, formatted to be interpreted by pandas to_datetime() function
+    """
+    # columns to be used in visualisation
+    species_mapping_columns = ['DATETIME', 'SPEC', 'COMMON_NAME', 'FLEN', 'FWT', 'MATURITY', 'SEX', 'AGE', 
+                   'SLAT', 'SLONG', 'ELAT', 'ELONG',  # these are averaged to get LAT, LONG
+                   'STRAT', 'DUR', 'DIST', 'SPEED', 'DEPTH', 'SURF_TEMP', 'BOTT_TEMP', 'BOTT_SAL']  # tow info
+    
+    # just need the species code(s)
+    species_code = species_code_to_list(species_code)[0]
+    
+    # create dataframe with full dates
+    map_df = dataframe[species_mapping_columns][dataframe['SPEC'].isin(species_code)]
+    map_df = filter_dates(map_df, date_min, date_max)
+    map_df = average_geo(map_df)
+    
+        
+    # change SPEC to string so that it graphs as a discrete categorical variable
+    map_df['SPEC'] = map_df['SPEC'].astype(str)
+
+    return map_df
+
+
+def map_species(dataframe, species_code, color='DEPTH', hover_data=None):
+    """
+    still need to optimise this, it is very slow with lots of datapoints
+    """
+
+    # just need the species names(s)
+    species_name = species_code_to_list(species_code)[1]
+    
+    # filter the full dataframe for mapping = gdf
+    gdf = geo_species(dataframe, species_code)
+    
+    # ######## FOR DEBUGGING ######## 
+    # ######## make the graph faster ######## 
+    # gdf = geo_species(dataframe, species_code).sample(1000)
+    
+    # custom hover data if inputted
+    if hover_data == None:
+        hover_data=gdf.columns
+    else:
+        hover_data=hover_data
+    
+    # make the plot
+    fig = px.scatter_geo(gdf, lat='LAT', lon='LONG', 
+        hover_data=hover_data, color=color,
+        projection='natural earth', scope='north america', 
+        title=f'Map of {species_name} Coloured by {color}'
+    )
+    fig.update_geos(resolution=50, projection_scale=10, center=dict(lat=44, lon=-63))
+    fig.update_layout(width=1200, height=800, title_x=0.5)
+    
+    # show the plot
+    fig.show()
 
