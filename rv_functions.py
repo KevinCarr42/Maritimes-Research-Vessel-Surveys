@@ -313,11 +313,34 @@ def scatterplot_species(dataframe, species_code, x='DATETIME', y='DEPTH', date_m
         plot_df.plot(x=x, y=y, kind='scatter', figsize=(30, 12), c='#4C72B0', title=f'{get_species(species_code)}: {y} as a function of {x}')
 
 
-def species_code_to_list(species_code):
+
+############## MAPPING FUNCTIONS ############################
+
+
+
+def filter_by_min_species(dataframe, min_species=None):
+    """filters dataframe rows where species do not have at least min_species total specimens"""
+    if min_species != None:
+        spec_counts = pd.DataFrame(dataframe.SPEC.value_counts())
+        return dataframe[dataframe['SPEC'].isin(list(spec_counts[spec_counts.SPEC > min_species].index))]
+    return dataframe
+
+
+def get_species_code_and_name(dataframe, species_code):
     """
-    species_code can be an in or a list of ints
-    returns name(s) of species and code(s) in list format
+    helper function for mapping, 
+        converts dataframe and list of species into mappable species codes and names
+    species_code='all' returns all species in the dataframe
+        the dataframe could be filtered already, eg, filter_by_min_species()
+    otherwise, 
+        species_code can be an in or a list of ints
+        returns name(s) of species and code(s) in list format
     """
+    
+    if species_code == 'all':
+        species_code = list(dataframe.dropna(subset=['SPEC']).SPEC.unique())
+        return list(dataframe.dropna(subset=['SPEC']).SPEC.unique()), f'{len(species_code)} Species'
+    
     if isinstance(species_code, list):
         species_name = ''
         for i in species_code:
@@ -330,61 +353,119 @@ def species_code_to_list(species_code):
     return species_code, species_name
 
 
-def geo_species(dataframe, species_code, date_min=None, date_max=None):
+def filter_by_species(dataframe, species_code):
+    """filters dataframe based on inputted species codes ('all', int, or list of ints)"""
+    species_code = get_species_code_and_name(dataframe, species_code)[0]
+    return dataframe[dataframe['SPEC'].isin(species_code)]
+
+
+def convert_to_geo(dataframe):
     """
-    species_code can be an in or a list of ints
-    date_min and date_max are strings, formatted to be interpreted by pandas to_datetime() function
+    filters dataframe by location
     """
+    
     # columns to be used in visualisation
     species_mapping_columns = ['DATETIME', 'SPEC', 'COMMON_NAME', 'FLEN', 'FWT', 'MATURITY', 'SEX', 'AGE', 
-                   'SLAT', 'SLONG', 'ELAT', 'ELONG',  # these are averaged to get LAT, LONG
-                   'STRAT', 'DUR', 'DIST', 'SPEED', 'DEPTH', 'SURF_TEMP', 'BOTT_TEMP', 'BOTT_SAL']  # tow info
-    
-    # just need the species code(s)
-    species_code = species_code_to_list(species_code)[0]
-    
-    # create dataframe with full dates
-    map_df = dataframe[species_mapping_columns][dataframe['SPEC'].isin(species_code)]
-    map_df = filter_dates(map_df, date_min, date_max)
-    map_df = average_geo(map_df)
-    
+        'SLAT', 'SLONG', 'ELAT', 'ELONG',  # these are averaged to get LAT, LONG
+        'SETNO', 'TOTNO',  # maybe just for debugging
+        'STRAT', 'DUR', 'DIST', 'SPEED', 'DEPTH', 'SURF_TEMP', 'BOTT_TEMP', 'BOTT_SAL']  # tow info
         
-    # change SPEC to string so that it graphs as a discrete categorical variable
+    # create dataframe with averaged geo, using only the above mapping columns
+    map_df = average_geo(dataframe[species_mapping_columns].copy())
+    
+    # change SPEC to string so that it plots/maps as a discrete categorical variable
     map_df['SPEC'] = map_df['SPEC'].astype(str)
 
     return map_df
 
 
-def map_species(dataframe, species_code, color='DEPTH', hover_data=None):
+def aggregate_by_geo(dataframe, verbose=False):
     """
-    still need to optimise this, it is very slow with lots of datapoints
+    need a geo dataframe with avreaged lat and long
+        ie, CALL THE FUNCTION convert_to_geo() first
+    min_species
+        min_species ignores species with less than min_species total samples
+    species_code
+        can input species_code='all' for all (filtered by min_species)
+        or species_code=int or list of ints for species desired
+        can use species_codes_by_percentile()
     """
 
-    # just need the species names(s)
-    species_name = species_code_to_list(species_code)[1]
+    aggregation = {
+        'DEPTH': ['count', 'max'],  # count is how many fish in that location, max = mean = min (from SETNO not SPEC)
+        'FWT': ['sum', 'min', 'max', 'mean'],  # cum is total weight of fish in that location
+        'AGE': ['min', 'max', 'mean'], 
+        'FLEN': ['min', 'max', 'mean']
+    }
+
+    if verbose:
+        aggregation.update({
+            'DATETIME': ['mean'], 
+            'SPEED': ['mean'], 
+            'DIST': ['mean'], 
+            'DUR': ['mean'], 
+            'SURF_TEMP': ['mean'], 
+            'BOTT_TEMP': ['mean'], 
+            'BOTT_SAL': ['mean']
+        })
+
+    gdf = dataframe.drop(['MATURITY', 'SEX', 'STRAT'], axis=1)
     
-    # filter the full dataframe for mapping = gdf
-    gdf = geo_species(dataframe, species_code)
+    return gdf.groupby(['SPEC', 'COMMON_NAME', 'LAT', 'LONG']).agg(aggregation)
+
+
+def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=None, hover_data=None, min_species=None, verbose=False, aggregate_data=True):
+    """
+    TODO: write a good docstring
+    """
+        
+    # filter by min_species (number in total dataset, filter min number per species first)
+    dataframe = filter_by_min_species(dataframe, min_species=min_species)
     
-    # ######## FOR DEBUGGING ######## 
-    # ######## make the graph faster ######## 
-    # gdf = geo_species(dataframe, species_code).sample(1000)
+    # filter dataframe by dates
+    dataframe = filter_dates(dataframe, date_min=date_min, date_max=date_max)
+        
+    # filter by species
+    dataframe = filter_by_species(dataframe, species_code)
     
+    # convert to averaged lat/long and mappable columns
+    dataframe = convert_to_geo(dataframe)
+    
+    # get the species names(s) for the plot
+    species_name = get_species_code_and_name(dataframe, species_code)[1]
+    
+    # filter the full dataframe for mapping = dataframe
+    if aggregate_data:
+        # aggregate by lat/long, species, and filter entries with less than min_species
+        dataframe = aggregate_by_geo(dataframe, verbose=verbose)
+        dataframe.columns = ['_'.join(col) for col in dataframe.columns.values]  # flatten the dataframe
+        dataframe.reset_index(inplace=True)
+        dataframe.rename(columns={'DEPTH_count': 'COUNT', 'DEPTH_max': 'DEPTH', 'FWT_sum': 'TOTAL_weight', 'DATETIME_mean': 'DATETIME'}, inplace=True)
+        
     # custom hover data if inputted
     if hover_data == None:
-        hover_data=gdf.columns
+        hover_data=dataframe.columns
     else:
         hover_data=hover_data
     
     # make the plot
-    fig = px.scatter_geo(gdf, lat='LAT', lon='LONG', 
+    fig = px.scatter_geo(dataframe, lat='LAT', lon='LONG', 
         hover_data=hover_data, color=color,
         projection='natural earth', scope='north america', 
         title=f'Map of {species_name} Coloured by {color}'
     )
-    fig.update_geos(resolution=50, projection_scale=10, center=dict(lat=44, lon=-63))
-    fig.update_layout(width=1200, height=800, title_x=0.5)
+    fig.update_geos(resolution=50, projection_scale=9, center=dict(lat=44, lon=-63))
+    fig.update_layout(width=1200, height=700, title_x=0.5)
     
     # show the plot
     fig.show()
+
+
+
+
+
+
+
+
+
 
