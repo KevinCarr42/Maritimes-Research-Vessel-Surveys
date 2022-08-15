@@ -43,6 +43,19 @@ def get_species(species_code, SPECIES=SPECIES):
     return SPECIES[SPECIES.SPEC == species_code].COMMON_NAME.tolist()[0]
 
 
+def species_codes_by_percentile(dataframe, percentile_as_decimal, ascending=False):
+    """
+    input 0.1 to get top 10% of species, 1 returns all species
+    based on specimen counts
+    ascending=True will return the bottom percentile_as_decimal of species
+    """
+    
+    spec_counts = pd.DataFrame(dataframe.SPEC.value_counts(ascending=ascending))
+    spec_list = list(spec_counts.SPEC.index)
+    number_of_species = len(spec_list)
+    return spec_list[0:int(number_of_species*percentile_as_decimal)]
+
+
 def search_species_by_name(name_contains, SPECIES=SPECIES):
     """returns a list of species that fit the query"""
     return SPECIES[SPECIES['COMMON_NAME'].str.contains(name_contains, case=False)]
