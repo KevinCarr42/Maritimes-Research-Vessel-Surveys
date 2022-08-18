@@ -6,7 +6,6 @@ Also includes imported dataframes from CSV tables and joined database
 ###### IMPORT MODULES ######
 
 import pandas as pd
-import geopandas as gpd
 import plotly.express as px
 
 
@@ -313,9 +312,7 @@ def scatterplot_species(dataframe, species_code, x='DATETIME', y='DEPTH', date_m
         plot_df.plot(x=x, y=y, kind='scatter', figsize=(30, 12), c='#4C72B0', title=f'{get_species(species_code)}: {y} as a function of {x}')
 
 
-
 ############## MAPPING FUNCTIONS ############################
-
 
 
 def filter_by_min_species(dataframe, min_species=None):
@@ -326,7 +323,7 @@ def filter_by_min_species(dataframe, min_species=None):
     return dataframe
 
 
-def get_species_code_and_name(dataframe, species_code):
+def _get_species_code_and_name(dataframe, species_code):
     """
     helper function for mapping, 
         converts dataframe and list of species into mappable species codes and names
@@ -355,12 +352,13 @@ def get_species_code_and_name(dataframe, species_code):
 
 def filter_by_species(dataframe, species_code):
     """filters dataframe based on inputted species codes ('all', int, or list of ints)"""
-    species_code = get_species_code_and_name(dataframe, species_code)[0]
+    species_code = _get_species_code_and_name(dataframe, species_code)[0]
     return dataframe[dataframe['SPEC'].isin(species_code)]
 
 
-def convert_to_geo(dataframe):
+def _convert_to_geo(dataframe):
     """
+    helper function
     filters dataframe by location
     """
     
@@ -429,10 +427,10 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
     dataframe = filter_by_species(dataframe, species_code)
     
     # convert to averaged lat/long and mappable columns
-    dataframe = convert_to_geo(dataframe)
+    dataframe = _convert_to_geo(dataframe)
     
     # get the species names(s) for the plot
-    species_name = get_species_code_and_name(dataframe, species_code)[1]
+    species_name = _get_species_code_and_name(dataframe, species_code)[1]
     
     # filter the full dataframe for mapping = dataframe
     if aggregate_data:
@@ -450,19 +448,16 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
         hover_data=dataframe.columns
     else:
         hover_data=hover_data
-    
-#     # display depth as a negative value, relative to water-level
-#     if color == 'DEPTH':
-#         dataframe['DEPTH'] = -dataframe['DEPTH']
         
     # make the plot
     fig = px.scatter_geo(dataframe, lat='LAT', lon='LONG', 
-        hover_data=hover_data, color=color,
+        hover_data=hover_data, color=color, 
+        color_continuous_scale='Plasma',
         projection='natural earth', scope='north america', 
         title=f'Map of {species_name} Coloured by {color}'
     )
     
-    fig.update_geos(resolution=50, projection_scale=8, center=dict(lat=44, lon=-63))
+    fig.update_geos(resolution=50, projection_scale=8, center=dict(lat=43.5, lon=-63))
     fig.update_layout(
         width=900, height=700, title_x=0.5, 
         margin=dict(l=0, r=0),
@@ -471,8 +466,15 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
     
     # display depth below water
     if color == 'DEPTH':
-        fig.update_layout(coloraxis={"reversescale": True})
-        
+        fig.update_layout(
+            coloraxis=dict(
+                reversescale = True,
+                cauto = False,
+                cmin=0, 
+                cmax=500
+            )
+        )
+
     # show the plot
     fig.show()
 
