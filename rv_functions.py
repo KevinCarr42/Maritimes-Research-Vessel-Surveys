@@ -441,6 +441,9 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
         dataframe.columns = ['_'.join(col) for col in dataframe.columns.values]  # flatten the dataframe
         dataframe.reset_index(inplace=True)
         dataframe.rename(columns={'DEPTH_count': 'COUNT', 'DEPTH_max': 'DEPTH', 'FWT_sum': 'TOTAL_weight', 'DATETIME_mean': 'DATETIME'}, inplace=True)
+    
+    # convert DATETIME to year to make it mappable
+    dataframe['DATETIME'] = dataframe['DATETIME'].dt.year
         
     # custom hover data if inputted
     if hover_data == None:
@@ -448,24 +451,28 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
     else:
         hover_data=hover_data
     
+#     # display depth as a negative value, relative to water-level
+#     if color == 'DEPTH':
+#         dataframe['DEPTH'] = -dataframe['DEPTH']
+        
     # make the plot
     fig = px.scatter_geo(dataframe, lat='LAT', lon='LONG', 
         hover_data=hover_data, color=color,
         projection='natural earth', scope='north america', 
         title=f'Map of {species_name} Coloured by {color}'
     )
-    fig.update_geos(resolution=50, projection_scale=9, center=dict(lat=44, lon=-63))
-    fig.update_layout(width=1200, height=700, title_x=0.5)
     
+    fig.update_geos(resolution=50, projection_scale=8, center=dict(lat=44, lon=-63))
+    fig.update_layout(
+        width=900, height=700, title_x=0.5, 
+        margin=dict(l=0, r=0),
+        coloraxis=dict(colorbar={'orientation':'h', 'y':0, 'thickness':20})
+    )
+    
+    # display depth below water
+    if color == 'DEPTH':
+        fig.update_layout(coloraxis={"reversescale": True})
+        
     # show the plot
     fig.show()
-
-
-
-
-
-
-
-
-
 
