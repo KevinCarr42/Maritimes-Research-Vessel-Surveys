@@ -395,12 +395,12 @@ def aggregate_by_geo(dataframe, verbose=False):
         'DEPTH': ['count', 'max'],  # count is how many fish in that location, max = mean = min (from SETNO not SPEC)
         'FWT': ['sum', 'min', 'max', 'mean'],  # cum is total weight of fish in that location
         'AGE': ['min', 'max', 'mean'], 
-        'FLEN': ['min', 'max', 'mean']
+        'FLEN': ['min', 'max', 'mean'], 
+        'DATETIME': ['mean']
     }
 
     if verbose:
         aggregation.update({
-            'DATETIME': ['mean'], 
             'SPEED': ['mean'], 
             'DIST': ['mean'], 
             'DUR': ['mean'], 
