@@ -267,15 +267,15 @@ def top_species_by_attribute(dataframe, attribute='DEPTH', aggregation='mean', h
     
     # filter by min_species
     if (min_species == 0) or (min_species is None):
-        top_species = dataframe
+        dataframe = dataframe
     else:
-        top_species = filter_by_min_species(dataframe, min_species=min_species)  
+        dataframe = filter_by_min_species(dataframe, min_species=min_species)  
     
     # filter by dates
     if (date_min == None) and (date_max == None):
         pass
     else:
-        top_species = filter_dates(top_species, date_min=date_min, date_max=date_max)  # by dates
+        dataframe = filter_dates(dataframe, date_min=date_min, date_max=date_max)  # by dates
     
     # filter by species and attribute
     if attribute == None:
@@ -284,7 +284,7 @@ def top_species_by_attribute(dataframe, attribute='DEPTH', aggregation='mean', h
         top_species['NAME'] = top_species['SPEC'].apply(get_species)
         top_species = top_species[['SPEC', 'NAME', 'COUNT']].set_index('SPEC')
     else:
-        top_species = pd.DataFrame(top_species.groupby('SPEC')[attribute].agg(aggregation).sort_values(ascending=False).head(how_many))
+        top_species = pd.DataFrame(dataframe.groupby('SPEC')[attribute].agg(aggregation).sort_values(ascending=False).head(how_many))
         top_species['CODE'] = top_species.index
         top_species['NAME'] = top_species['CODE'].apply(get_species)
         top_species = top_species[['NAME', attribute]].rename(columns={attribute: f'{aggregation}_{attribute}'.upper()})
@@ -296,6 +296,14 @@ def top_species_by_attribute(dataframe, attribute='DEPTH', aggregation='mean', h
 def top_x_species(dataframe, how_many=10):
     """top 10 most common species by count"""
     return top_species_by_attribute(dataframe, how_many=how_many, attribute=None, min_species=None)
+
+
+def species_rank(dataframe, species_code, date_min=None, date_max=None):
+    """how common is this species by count"""
+    dataframe = filter_dates(dataframe, date_min=date_min, date_max=date_max)
+    spec_counts = pd.DataFrame(dataframe.SPEC.value_counts())
+    output = spec_counts.reset_index().rename(columns={'SPEC': 'COUNT', 'index': 'SPEC'})
+    return output[output.SPEC == species_code].index.values[0] + 1
 
 
 def print_species_data(dataframe, species_code):
