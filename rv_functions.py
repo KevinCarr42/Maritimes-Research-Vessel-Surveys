@@ -250,6 +250,53 @@ def species_counts(dataframe, species_code):
     return dict_of_unique
 
 
+def top_species_by_attribute(dataframe, attribute='DEPTH', aggregation='mean', how_many=10, min_species=1000, date_min=None, date_max=None):
+    """
+    top_species_by_attribute(dataframe, attribute='DEPTH', aggregation='mean', how_many=10, min_species=1000)
+        attribute = 'DEPTH'  # default
+            attribute = None  # for a simple count of species
+            this can be done more simply with the top_x_species() function
+        aggregation = 'mean'
+        how_many = 10  # top how_many species
+        min_species = 1000  # min specimens per species, ie, ignore rare species less than min_species in number
+    """
+    
+    # import dataframe and filter
+    # NOTE: if statements speed up the operation ~400ms each on my computer
+    
+    # filter by min_species
+    if (min_species == 0) or (min_species is None):
+        top_species = dataframe
+    else:
+        top_species = filter_by_min_species(dataframe, min_species=min_species)  
+    
+    # filter by dates
+    if (date_min == None) and (date_max == None):
+        pass
+    else:
+        top_species = filter_dates(dataframe, date_min=date_min, date_max=date_max)  # by dates
+    
+    # filter by species and attribute
+    if attribute == None:
+        top_species = pd.DataFrame(dataframe.SPEC.value_counts().head(how_many)).rename(columns={'SPEC':'COUNT'})
+        top_species['SPEC'] = top_species.index
+        top_species['NAME'] = top_species['SPEC'].apply(get_species)
+        top_species = top_species[['SPEC', 'NAME', 'COUNT']].set_index('SPEC')
+    else:
+        top_species = pd.DataFrame(top_species.groupby('SPEC')[attribute].agg(aggregation).sort_values(ascending=False).head(how_many))
+        top_species['CODE'] = top_species.index
+        top_species['NAME'] = top_species['CODE'].apply(get_species)
+        top_species = top_species[['NAME', attribute]].rename(columns={attribute: f'{aggregation}_{attribute}'.upper()})
+        top_species['COUNTS'] = dataframe.SPEC.value_counts()
+    
+    return top_species
+
+
+def top_x_species(dataframe, how_many=10):
+    """top 10 most common species by count"""
+    return top_species_by_attribute(dataframe, how_many=how_many, attribute=None, min_species=None)
+
+
 def print_species_data(dataframe, species_code):
     
     print('\n', get_species(species_code))
