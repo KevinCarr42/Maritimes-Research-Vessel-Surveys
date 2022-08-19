@@ -250,15 +250,16 @@ def species_counts(dataframe, species_code):
     return dict_of_unique
 
 
-def top_species_by_attribute(dataframe, attribute='DEPTH', aggregation='mean', how_many=10, min_species=1000, date_min=None, date_max=None):
+def top_species_by_attribute(dataframe, attribute='DEPTH', aggregation='mean', how_many=10, min_species=None, date_min=None, date_max=None):
     """
-    top_species_by_attribute(dataframe, attribute='DEPTH', aggregation='mean', how_many=10, min_species=1000)
+    top_species_by_attribute(dataframe, attribute='DEPTH', aggregation='mean', how_many=10, min_species=None, date_min=None, date_max=None)
         attribute = 'DEPTH'  # default
             attribute = None  # for a simple count of species
             this can be done more simply with the top_x_species() function
         aggregation = 'mean'
         how_many = 10  # top how_many species
         min_species = 1000  # min specimens per species, ie, ignore rare species less than min_species in number
+        filter by dates in string format (formats recognisable by pandas to_datetime() function)
     """
     
     # import dataframe and filter
@@ -274,7 +275,7 @@ def top_species_by_attribute(dataframe, attribute='DEPTH', aggregation='mean', h
     if (date_min == None) and (date_max == None):
         pass
     else:
-        top_species = filter_dates(dataframe, date_min=date_min, date_max=date_max)  # by dates
+        top_species = filter_dates(top_species, date_min=date_min, date_max=date_max)  # by dates
     
     # filter by species and attribute
     if attribute == None:
