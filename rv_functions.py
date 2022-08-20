@@ -541,7 +541,12 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
         fig.update_layout(
             width=900, height=600, title_x=0.5, title_y=0.95,
             margin=dict(l=0, r=0, b=0, t=50),
-            coloraxis=dict(colorbar=dict(orientation='h', y=0, thickness=20))
+            coloraxis=dict(
+                colorbar=dict(orientation='h', y=0, thickness=20),
+                ########## THIS DOESN'T WORK WITH NULL VALUES #############
+                cmin=min(dataframe[color]), 
+                cmax=max(dataframe[color])
+            )
         )
     
     # fix layout if animation
@@ -557,4 +562,3 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
     # show the plot
     fig.show()
     
-
