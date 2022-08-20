@@ -468,7 +468,7 @@ def aggregate_by_geo(dataframe, verbose=False):
     return gdf.groupby(['SPEC', 'COMMON_NAME', 'LAT', 'LONG']).agg(aggregation)
 
 
-def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=None, hover_data=None, min_species=None, verbose=False, aggregate_data=True, animation_frame=None):
+def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=None, hover_data=None, min_species=None, verbose=False, aggregate_data=True, animation_frame=None, impute_method=None):
     """
     TODO: write a good docstring
     """
@@ -501,13 +501,19 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
     
     # convert DATETIME to year to make it mappable
     dataframe['DATETIME'] = dataframe['DATETIME'].dt.year
-    
         
     # custom hover data if inputted
     if hover_data == None:
         hover_data=dataframe.columns
     else:
         hover_data=hover_data
+
+    #### IMPUTE NA VALUE FOR ANIMATIONS ####
+    #### if colorbar is not displaying correctly, try imputing the missing data (all data for a year is missing) ####
+    # impute missing values  if continuous and animation
+    if (dataframe[color].dtype == 'float64') and (animation_frame != None) and (impute_method != None):
+        # need to impute, otherwise colorbar will not display
+        dataframe[color].fillna(dataframe[color].agg(impute_method), inplace=True)
         
     # make the plot
     fig = px.scatter_geo(
@@ -525,27 +531,26 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
         margin=dict(l=0, r=0, b=0, t=50)
     )
     
-    # display depth below water
-    if color == 'DEPTH':
-        fig.update_layout(
-            coloraxis=dict(
-                reversescale = True,
-                cauto = False,
-                cmin=0, 
-                cmax=500
-            )
-        )
-        
-    # fix size if color is continuous
+    # fix layout if color is continuous
     if dataframe[color].dtype == 'float64':
         fig.update_layout(
             width=900, height=600, title_x=0.5, title_y=0.95,
             margin=dict(l=0, r=0, b=0, t=50),
             coloraxis=dict(
                 colorbar=dict(orientation='h', y=0, thickness=20),
-                ########## THIS DOESN'T WORK WITH NULL VALUES #############
-                cmin=min(dataframe[color]), 
-                cmax=max(dataframe[color])
+                cmin=0, 
+                cmax=dataframe[color].max()
+            )
+        )
+
+    # display depth reversed, with max 500 depth
+    if color == 'DEPTH':
+        fig.update_layout(
+            coloraxis=dict(
+                reversescale = True,
+                cauto = False,
+                cmin=0, 
+                cmax=550
             )
         )
     
