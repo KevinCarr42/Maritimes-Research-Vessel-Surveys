@@ -379,7 +379,7 @@ def filter_by_min_species(dataframe, min_species=None):
     return dataframe
 
 
-def _get_species_code_and_name(dataframe, species_code):
+def get_species_code_and_name(dataframe, species_code):
     """
     helper function for mapping, 
         converts dataframe and list of species into mappable species codes and names
@@ -408,11 +408,11 @@ def _get_species_code_and_name(dataframe, species_code):
 
 def filter_by_species(dataframe, species_code):
     """filters dataframe based on inputted species codes ('all', int, or list of ints)"""
-    species_code = _get_species_code_and_name(dataframe, species_code)[0]
+    species_code = get_species_code_and_name(dataframe, species_code)[0]
     return dataframe[dataframe['SPEC'].isin(species_code)]
 
 
-def _convert_to_geo(dataframe):
+def convert_to_geo(dataframe):
     """
     helper function
     filters dataframe by location
@@ -468,7 +468,7 @@ def aggregate_by_geo(dataframe, verbose=False):
     return gdf.groupby(['SPEC', 'COMMON_NAME', 'LAT', 'LONG']).agg(aggregation)
 
 
-def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=None, hover_data=None, min_species=None, verbose=False, aggregate_data=True):
+def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=None, hover_data=None, min_species=None, verbose=False, aggregate_data=True, animation_frame=None):
     """
     TODO: write a good docstring
     """
@@ -483,10 +483,10 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
     dataframe = filter_by_species(dataframe, species_code)
     
     # convert to averaged lat/long and mappable columns
-    dataframe = _convert_to_geo(dataframe)
+    dataframe = convert_to_geo(dataframe)
     
     # get the species names(s) for the plot
-    species_name = _get_species_code_and_name(dataframe, species_code)[1]
+    species_name = get_species_code_and_name(dataframe, species_code)[1]
     
     # filter the full dataframe for mapping = dataframe
     if aggregate_data:
@@ -496,8 +496,12 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
         dataframe.reset_index(inplace=True)
         dataframe.rename(columns={'DEPTH_count': 'COUNT', 'DEPTH_max': 'DEPTH', 'FWT_sum': 'TOTAL_weight', 'DATETIME_mean': 'DATETIME'}, inplace=True)
     
+    # sort aggregated datetimes so animated map is in order
+    dataframe = dataframe.sort_values('DATETIME', ascending=True)
+    
     # convert DATETIME to year to make it mappable
     dataframe['DATETIME'] = dataframe['DATETIME'].dt.year
+    
         
     # custom hover data if inputted
     if hover_data == None:
@@ -506,18 +510,19 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
         hover_data=hover_data
         
     # make the plot
-    fig = px.scatter_geo(dataframe, lat='LAT', lon='LONG', 
+    fig = px.scatter_geo(
+        dataframe, lat='LAT', lon='LONG', 
+        animation_frame=animation_frame,
         hover_data=hover_data, color=color, 
         color_continuous_scale='Plasma',
         projection='natural earth', scope='north america', 
         title=f'Map of {species_name} Coloured by {color}'
     )
     
-    fig.update_geos(resolution=50, projection_scale=8, center=dict(lat=43.5, lon=-63))
+    fig.update_geos(resolution=50, projection_scale=8.7, center=dict(lat=43.7, lon=-63))
     fig.update_layout(
-        width=900, height=700, title_x=0.5, 
-        margin=dict(l=0, r=0),
-        coloraxis=dict(colorbar={'orientation':'h', 'y':0, 'thickness':20})
+        width=900, height=550, title_x=0.5, title_y=0.96, legend_y=1.0,
+        margin=dict(l=0, r=0, b=0, t=50)
     )
     
     # display depth below water
@@ -530,7 +535,26 @@ def map_species(dataframe, species_code, color='DEPTH', date_min=None, date_max=
                 cmax=500
             )
         )
-
+        
+    # fix size if color is continuous
+    if dataframe[color].dtype == 'float64':
+        fig.update_layout(
+            width=900, height=600, title_x=0.5, title_y=0.95,
+            margin=dict(l=0, r=0, b=0, t=50),
+            coloraxis=dict(colorbar=dict(orientation='h', y=0, thickness=20))
+        )
+    
+    # fix layout if animation
+    if animation_frame != None:
+        fig.update_layout(
+            width=850, height=700, title_x=0.5, title_y=0.95,
+            margin=dict(l=0, r=0, b=0, t=60),
+            legend=dict(y=0.05, x=0.75),  # bottom right legend
+        )
+        fig['layout']['updatemenus'][0]['pad'] = dict(r=0, l=10, b=0, t=0)
+        fig['layout']['sliders'][0]['pad'] = dict(r=0, l=10, b=0, t=0)
+        
     # show the plot
     fig.show()
+    
 
