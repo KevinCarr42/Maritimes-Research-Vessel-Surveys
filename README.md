@@ -2,6 +2,9 @@
 
 Exploratory Data Analysis (EDA) of ecosystem data from Open Data Canada. As described by open.canada.ca: “The Fisheries and Oceans Canada (DFO) ecosystem surveys consist of research vessel survey data collected to monitor the distribution and abundance of fish and invertebrates throughout the Scotian Shelf, Bay of Fundy and Georges Bank.”
 
+This project is a work in progress.
+
+
 ### Some Interesting Insights
 
 ###### Lobster vs Cod Ranked Species Counts
